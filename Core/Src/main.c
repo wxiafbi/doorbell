@@ -112,8 +112,8 @@ int main(void)
     HAL_UART_Receive_IT(&huart1, (uint8_t *)&aRxBuffer, 1);
     HAL_UART_Receive_IT(&huart2, (uint8_t *)&Uart2_aRxBuffer, 1);
     HAL_TIM_Base_Start_IT(&htim2);
-    HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 4, 0xFFFF);
-    HAL_UART_Transmit(&huart1, (uint8_t *)"iSp", 4, 0xFFFF);
+    // HAL_UART_Transmit(&huart2, (uint8_t *)"iACM", 4, 0xFFFF);
+    // HAL_UART_Transmit(&huart1, (uint8_t *)"iSp", 4, 0xFFFF);
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -122,13 +122,14 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        HAL_UART_Transmit(&huart1, (uint8_t *)"iSv", 4, 0xFFFF);
-        HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 4, 0xFFFF);
-        HAL_UART_Transmit(&huart1, (uint8_t *)"iSs", 4, 0xFFFF);
+        printf("¿ªÊ¼ÊÕ·¢\r\n");
+        // HAL_UART_Transmit(&huart1, (uint8_t *)"Êý¾ÝÒç³ö", 10, 0xFFFF);
+        // HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 3, 0xFFFF);
+        // HAL_UART_Transmit(&huart1, (uint8_t *)"iSs", 4, 0xFFFF);
         Open_door();
-        HAL_Delay(500);
-        
-        HAL_Delay(500);
+        HAL_Delay(5);
+
+        // HAL_Delay(500);
     }
     /* USER CODE END 3 */
 }
@@ -182,7 +183,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
                     HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
                     HAL_Delay(200);
                     HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
-                    HAL_UART_Transmit(&huart1, (uint8_t *)"æ•°æ®æº¢å‡º", 10, 0xFFFF);
+                    HAL_UART_Transmit(&huart1, (uint8_t *)"Êý¾ÝÒç³ö", 10, 0xFFFF);
                 }
             }
         }
@@ -213,13 +214,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     uint8_t x;
     static uint8_t uflag = 0;
     /* Prevent unused argument(s) compilation warning */
-    UNUSED(huart);
+    // UNUSED(huart);
     /* NOTE: This function Should not be modified, when the callback is needed,
              the HAL_UART_TxCpltCallback could be implemented in the user file
      */
     if (huart->Instance == USART1) {
         char a[] = "distance_saze";
-        if (Uart1_Rx_Cnt >= 255) // æº¢å‡ºåˆ¤æ–­
+        if (Uart1_Rx_Cnt >= 255) // Òç³öÅÐ¶Ï
         {
             Uart1_Rx_Cnt = 0;
             memset(RxBuffer, 0x00, sizeof(RxBuffer));
@@ -227,39 +228,42 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         } else {
             RxBuffer[Uart1_Rx_Cnt++] = aRxBuffer;
 
-            if ((RxBuffer[Uart1_Rx_Cnt - 1] == 0x0A) && (RxBuffer[Uart1_Rx_Cnt - 2] == 0x0D)) // åˆ¤æ–­ç»“æŸï¿½????????
+            if ((RxBuffer[Uart1_Rx_Cnt - 1] == 0x0A) && (RxBuffer[Uart1_Rx_Cnt - 2] == 0x0D)) // ÅÐ¶Ï½áÊø?????????
             {
-                HAL_UART_Transmit(&huart1, (uint8_t *)&RxBuffer, Uart1_Rx_Cnt, 0xFFFF); // å°†æ”¶åˆ°çš„ä¿¡æ¯å‘ï¿½?ï¿½å‡ºï¿½????????
+                HAL_UART_Transmit(&huart1, (uint8_t *)&RxBuffer, Uart1_Rx_Cnt, 0xFFFF); // ½«ÊÕµ½µÄÐÅÏ¢·¢???³ö?????????
                 while (HAL_UART_GetState(&huart1) == HAL_UART_STATE_BUSY_TX)
                     ;
                 Uart1_Rx_Cnt = 0;
-                memset(RxBuffer, 0x00, sizeof(RxBuffer)); // æ¸…ç©ºæ•°ç»„
+                memset(RxBuffer, 0x00, sizeof(RxBuffer)); // Çå¿ÕÊý×é
             }
         }
-        HAL_UART_Receive_IT(&huart1, (uint8_t *)&aRxBuffer, 1); // å†å¼€ï¿½????????æŽ¥æ”¶ï¿½????????ï¿½????????
+        HAL_UART_Receive_IT(&huart1, (uint8_t *)&aRxBuffer, 1); // ÔÙ¿ª?????????½ÓÊÕ??????????????????
     }
     if (huart->Instance == USART2) {
         /* code */
         if (Uart2_aRxBuffer == 0x44) {
             uflag = 1;
+            // HAL_UART_Transmit(&huart1, (uint8_t *)"step1", 6, 0xFFFF);
         }
         if (uflag) {
             USART3_RX_BUF[seri_count++] = Uart2_aRxBuffer;
+            // HAL_UART_Transmit(&huart1, (uint8_t *)"step2", 6, 0xFFFF);
             if (Uart2_aRxBuffer == 0x0A) {
                 for (size_t i = 0; i < seri_count; i++) {
                     /* code */
-                    // u1_printf("%x ", USART3_RX_BUF[i]);
-                    HAL_UART_Transmit(&huart1, (uint8_t *)&USART3_RX_BUF[i], 1, 0xFFFF);
+                    // printf("%x ", USART3_RX_BUF[i]);
+                    // HAL_UART_Transmit(&huart1, (uint8_t *)&USART3_RX_BUF[i], 1, 0xFFFF);
+                    // HAL_UART_Transmit(&huart1, (uint8_t *)"step3\r\n", 8, 0xFFFF);
                     switch (USART3_RX_BUF[i]) {
                         case 0x6D:
                             check_flag = i;
-                            // u1_printf("0x6Dåœ¨ç¬¬%dï¿½??", check_flag);
-                            HAL_UART_Transmit(&huart1, (uint8_t *)check_flag, 1, 0xFFFF);
+                            // u1_printf("0x6DÔÚµÚ%d???", check_flag);
+                            // HAL_UART_Transmit(&huart1, (uint8_t *)check_flag, 1, 0xFFFF);
                             break;
                         case 0x23:
                             end_flag = i;
-                            // u1_printf("0x0Dåœ¨ç¬¬%dï¿½??", end_flag);
-                            HAL_UART_Transmit(&huart1, (uint8_t *)end_flag, 1, 0xFFFF);
+                            // u1_printf("0x0DÔÚµÚ%d???", end_flag);
+                            // HAL_UART_Transmit(&huart1, (uint8_t *)end_flag, 1, 0xFFFF);
                             break;
                         default:
                             break;
@@ -281,15 +285,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                     fina_data2[k++] = USART3_RX_BUF[a];
                 }
 
-                sscanf(fina_data1, "%d", &finaldata1); // å­—ç¬¦ä¸²è½¬int
-                sscanf(fina_data2, "%d", &finaldata2); // å­—ç¬¦ä¸²è½¬int
+                sscanf(fina_data1, "%d", &finaldata1); // ×Ö·û´®×ªint
+                sscanf(fina_data2, "%d", &finaldata2); // ×Ö·û´®×ªint
 
-                // u1_printf("è·ç¦»ï¿½??=%dmm,å›žå…‰ï¿½??=%d\r\n", finaldata1, finaldata2); // printç”¨ä¸²ï¿½??2ï¼Œä¸²ï¿½??1ç”¨æ¥å’Œæ¿€å…‰æ¨¡å—ï¿½?ï¿½è®¯
-                HAL_UART_Transmit(&huart1, (uint8_t *)finaldata1, sizeof(finaldata2), 0xFFFF);
-                HAL_UART_Transmit(&huart1, (uint8_t *)finaldata2, sizeof(finaldata2), 0xFFFF);
-                /* code */
-                // result = finaldata1;
-                // ampdata = finaldata2;
+                printf("¾àÀë=%dmm,»Ø¹â=%d\r\n", finaldata1, finaldata2); // printÓÃ´®???2£¬´®???1ÓÃÀ´ºÍ¼¤¹âÄ£¿é???Ñ¶
                 for (x = 0; x < j; x++) {
                     fina_data1[x] = 0;
                     fina_data2[x] = 0;
@@ -308,7 +307,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     // static unsigned char ledState = 0;
     if (htim == (&htim2)) {
         SystemTimer++;
-        HAL_UART_Transmit(&huart1, (uint8_t *)SystemTimer, sizeof(SystemTimer), 0xFFFF);
+        printf("SystemTimer=%d\r\n", SystemTimer);
+        HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 3, 0xFFFF);
+
+        // HAL_UART_Transmit(&huart1, (uint8_t *)"iST", sizeof(SystemTimer), 0xFFFF);
     }
 }
 void Open_door(void)
@@ -316,10 +318,35 @@ void Open_door(void)
     if (SystemTimer - OpenTimer >= 30) {
         /* code */
         OpenTimer = SystemTimer;
+        HAL_UART_Transmit(&huart1, (uint8_t *)"iSM\r\n", 6, 0xFFFF);
+        // HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 4, 0xFFFF);
         HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
         HAL_Delay(500);
         HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
     }
+}
+/**
+ * º¯Êý¹¦ÄÜ: ÖØ¶¨Ïòc¿âº¯Êýprintfµ½DEBUG_USARTx
+ * ÊäÈë²ÎÊý: ÎÞ
+ * ·µ »Ø Öµ: ÎÞ
+ * Ëµ    Ã÷£ºÎÞ
+ */
+int fputc(int ch, FILE *f)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xffff);
+    return ch;
+}
+/**
+ * º¯Êý¹¦ÄÜ: ÖØ¶¨Ïòc¿âº¯Êýgetchar,scanfµ½DEBUG_USARTx
+ * ÊäÈë²ÎÊý: ÎÞ
+ * ·µ »Ø Öµ: ÎÞ
+ * Ëµ    Ã÷£ºÎÞ
+ */
+int fgetc(FILE *f)
+{
+    uint8_t ch = 0;
+    HAL_UART_Receive(&huart1, &ch, 1, 0xffff);
+    return ch;
 }
 /* USER CODE END 4 */
 
