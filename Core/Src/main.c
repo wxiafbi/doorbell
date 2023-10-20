@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -37,13 +38,24 @@ char USART3_RX_BUF[USART3_MAX_RECV_LEN];
 uint8_t Uart2_aRxBuffer; //
 // uint8_t seri_count = 0;    //
 
-unsigned int SystemTimer = 0;
-unsigned int OpenTimer   = 0;
+#define lenth      0xF
+
+#define R_NUM      20                       // 接收缓冲区个数
+#define RBUFF_UNIT 300                      // 接收缓冲区长度
+unsigned char MQTT_RxDataBuf[R_NUM][lenth]; // 数据的接收缓冲区,所有服务器发来的数据，存放在该缓冲区,缓冲区第一个字节存放数据长度
+unsigned char *MQTT_RxDataInPtr;            // 指向接收缓冲区存放数据的位置
+unsigned char *MQTT_RxDataOutPtr;           // 指向接收缓冲区读取数据的位置
+unsigned char *MQTT_RxDataEndPtr;           // 指向接收缓冲区结束的位置
 
 char fina_data1[5];
 char fina_data2[5];
 int finaldata1;
 int finaldata2;
+
+int fixed_value          = 0;
+unsigned int SystemTimer = 0;
+unsigned int OpenTimer   = 0;
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,15 +117,34 @@ int main(void)
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
+    MX_DMA_Init();
     MX_USART1_UART_Init();
     MX_USART2_UART_Init();
     MX_TIM2_Init();
     /* USER CODE BEGIN 2 */
-    HAL_UART_Receive_IT(&huart1, (uint8_t *)&aRxBuffer, 1);
-    HAL_UART_Receive_IT(&huart2, (uint8_t *)&Uart2_aRxBuffer, 1);
-    HAL_TIM_Base_Start_IT(&htim2);
-    // HAL_UART_Transmit(&huart2, (uint8_t *)"iACM", 4, 0xFFFF);
-    // HAL_UART_Transmit(&huart1, (uint8_t *)"iSp", 4, 0xFFFF);
+    HAL_TIM_Base_Start_IT(&htim2); // 打开tim2计时器
+    HAL_UART_Receive_DMA(&huart2, (uint8_t *)USART3_RX_BUF, lenth);
+
+    HAL_Delay(200);
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
+    HAL_Delay(200);
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
+    HAL_Delay(200);
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
+    HAL_Delay(200);
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
+
+    fixed_value = finaldata1;
+
+    MQTT_RxDataInPtr  = MQTT_RxDataBuf[0];         // 指向发送缓冲区存放数据的指针归位
+    MQTT_RxDataOutPtr = MQTT_RxDataInPtr;          // 指向发送缓冲区读取数据的指针归位
+    MQTT_RxDataEndPtr = MQTT_RxDataBuf[R_NUM - 1]; // 指向发送缓冲区结束的指针归位
+
+    printf("I-n=0x%x", MQTT_RxDataInPtr);
+
+    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iACM", 4);
+    HAL_Delay(200);
+
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -122,14 +153,8 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        printf("开始收发\r\n");
-        // HAL_UART_Transmit(&huart1, (uint8_t *)"数据溢出", 10, 0xFFFF);
-        // HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 3, 0xFFFF);
-        // HAL_UART_Transmit(&huart1, (uint8_t *)"iSs", 4, 0xFFFF);
         Open_door();
-        HAL_Delay(5);
-
-        // HAL_Delay(500);
+        
     }
     /* USER CODE END 3 */
 }
@@ -209,10 +234,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    static uint8_t seri_count = 0;
-    char check_flag, end_flag, j, k = 0;
-    uint8_t x;
-    static uint8_t uflag = 0;
+    // static uint8_t seri_count = 0;
+    // char check_flag, end_flag, j, k = 0;
+    // uint8_t x;
+    // static uint8_t uflag = 0;
     /* Prevent unused argument(s) compilation warning */
     // UNUSED(huart);
     /* NOTE: This function Should not be modified, when the callback is needed,
@@ -241,65 +266,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
     if (huart->Instance == USART2) {
         /* code */
-        if (Uart2_aRxBuffer == 0x44) {
-            uflag = 1;
-            // HAL_UART_Transmit(&huart1, (uint8_t *)"step1", 6, 0xFFFF);
+        for (size_t i = 0; i < lenth; i++) {
+            /* code */
+            printf("%c", USART3_RX_BUF[i]);
         }
-        if (uflag) {
-            USART3_RX_BUF[seri_count++] = Uart2_aRxBuffer;
-            // HAL_UART_Transmit(&huart1, (uint8_t *)"step2", 6, 0xFFFF);
-            if (Uart2_aRxBuffer == 0x0A) {
-                for (size_t i = 0; i < seri_count; i++) {
-                    /* code */
-                    // printf("%x ", USART3_RX_BUF[i]);
-                    // HAL_UART_Transmit(&huart1, (uint8_t *)&USART3_RX_BUF[i], 1, 0xFFFF);
-                    // HAL_UART_Transmit(&huart1, (uint8_t *)"step3\r\n", 8, 0xFFFF);
-                    switch (USART3_RX_BUF[i]) {
-                        case 0x6D:
-                            check_flag = i;
-                            // u1_printf("0x6D在第%d???", check_flag);
-                            // HAL_UART_Transmit(&huart1, (uint8_t *)check_flag, 1, 0xFFFF);
-                            break;
-                        case 0x23:
-                            end_flag = i;
-                            // u1_printf("0x0D在第%d???", end_flag);
-                            // HAL_UART_Transmit(&huart1, (uint8_t *)end_flag, 1, 0xFFFF);
-                            break;
-                        default:
-                            break;
-                    }
-                }
+        memcpy(MQTT_RxDataInPtr, USART3_RX_BUF, lenth);
+        MQTT_RxDataInPtr += lenth; // 指针下移
 
-                for (size_t i = 2; i < check_flag; i++) {
-
-                    if (USART3_RX_BUF[i] == 0x2E) {
-                        continue;
-                    }
-                    fina_data1[j++] = USART3_RX_BUF[i];
-                }
-                for (size_t a = check_flag + 1; a < end_flag; a++) {
-
-                    if (USART3_RX_BUF[a] == 0x2C) {
-                        continue;
-                    }
-                    fina_data2[k++] = USART3_RX_BUF[a];
-                }
-
-                sscanf(fina_data1, "%d", &finaldata1); // 字符串转int
-                sscanf(fina_data2, "%d", &finaldata2); // 字符串转int
-
-                printf("距离=%dmm,回光=%d\r\n", finaldata1, finaldata2); // print用串???2，串???1用来和激光模块???讯
-                for (x = 0; x < j; x++) {
-                    fina_data1[x] = 0;
-                    fina_data2[x] = 0;
-                }
-                uflag      = 0;
-                seri_count = 0;
-                j          = 0;
-                k          = 0;
-            }
-        }
-        HAL_UART_Receive_IT(&huart2, (uint8_t *)&Uart2_aRxBuffer, 1);
+        if (MQTT_RxDataInPtr == MQTT_RxDataEndPtr) // 如果指针到缓冲区尾部了
+            MQTT_RxDataInPtr = MQTT_RxDataBuf[0];  // 指针归位到缓冲区开头
+        HAL_UART_Receive_DMA(&huart2, (uint8_t *)USART3_RX_BUF, lenth);
     }
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -308,9 +284,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (htim == (&htim2)) {
         SystemTimer++;
         printf("SystemTimer=%d\r\n", SystemTimer);
-        HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 3, 0xFFFF);
-
-        // HAL_UART_Transmit(&huart1, (uint8_t *)"iST", sizeof(SystemTimer), 0xFFFF);
+        if (SystemTimer >= 121) {
+            /* code */
+            SystemTimer = 0;
+            OpenTimer   = 0;
+        }
     }
 }
 void Open_door(void)
@@ -318,12 +296,26 @@ void Open_door(void)
     if (SystemTimer - OpenTimer >= 30) {
         /* code */
         OpenTimer = SystemTimer;
-        HAL_UART_Transmit(&huart1, (uint8_t *)"iSM\r\n", 6, 0xFFFF);
+        // HAL_UART_Transmit(&huart1, (uint8_t *)"iSM\r\n", 6, 0xFFFF);
         // HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 4, 0xFFFF);
         HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
         HAL_Delay(500);
         HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
     }
+}
+void Data_analysis(void){
+    if (MQTT_RxDataInPtr != MQTT_RxDataOutPtr) {
+            /* code */
+            printf("数据解析\r\n");
+            for (size_t i = 0; i < lenth; i++) {
+                /* code */
+                printf("%x ", MQTT_RxDataOutPtr[i]);
+            }
+            MQTT_RxDataOutPtr += lenth;                 // 接收指针下移
+            if (MQTT_RxDataOutPtr == MQTT_RxDataEndPtr) // 如果接收指针到接收缓冲区尾部了
+                MQTT_RxDataOutPtr = MQTT_RxDataBuf[0];  // 接收指针归位到接收缓冲区开头
+        }
+
 }
 /**
  * 函数功能: 重定向c库函数printf到DEBUG_USARTx

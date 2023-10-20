@@ -47,6 +47,7 @@ extern "C" {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 void Open_door(void);
+void Data_analysis(void);
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
