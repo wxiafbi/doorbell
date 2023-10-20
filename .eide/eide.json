@@ -30,6 +30,9 @@
                 "name": "Core",
                 "files": [
                   {
+                    "path": "Core/Src/dma.c"
+                  },
+                  {
                     "path": "Core/Src/gpio.c"
                   },
                   {
