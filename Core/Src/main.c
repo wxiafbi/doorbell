@@ -12,7 +12,10 @@
  * This software is licensed under terms that can be found in the LICENSE file
  * in the root directory of this software component.
  * If no LICENSE file comes with this software, it is provided AS-IS.
- *
+ * L1快速测量结果(iFACM)：44 3D 31 2E 32 38 36 6D 0D 0A
+ * L1停止测量(iHALT)：53 54 4F 50 0D 0A 4F 4B 0D 0A
+ * L1单次测量(iSM)：44 3D 31 2E 32 38 37 6D 2C 32 35 34 23 0D 0A
+ * L1上电回复：4C 31 2D 56 34 2E 30 2D 28 31 35 6D 29 0D 0A 4F 4B 0D 0A
  ******************************************************************************
  */
 /* USER CODE END Header */
@@ -38,7 +41,7 @@ char USART3_RX_BUF[USART3_MAX_RECV_LEN];
 uint8_t Uart2_aRxBuffer; //
 // uint8_t seri_count = 0;    //
 
-#define lenth      0xF
+#define lenth      15
 
 #define R_NUM      20                       // 接收缓冲区个数
 #define RBUFF_UNIT 300                      // 接收缓冲区长度
@@ -55,6 +58,8 @@ int finaldata2;
 int fixed_value          = 0;
 unsigned int SystemTimer = 0;
 unsigned int OpenTimer   = 0;
+
+uint8_t times = 0;//开门标志位
 
 /* USER CODE END Includes */
 
@@ -96,7 +101,7 @@ void SystemClock_Config(void);
 int main(void)
 {
     /* USER CODE BEGIN 1 */
-
+    
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -112,7 +117,11 @@ int main(void)
     SystemClock_Config();
 
     /* USER CODE BEGIN SysInit */
-
+    HAL_Delay(200);
+    HAL_Delay(200);
+    HAL_Delay(200);
+    HAL_Delay(200);
+    HAL_Delay(200);
     /* USER CODE END SysInit */
 
     /* Initialize all configured peripherals */
@@ -122,19 +131,8 @@ int main(void)
     MX_USART2_UART_Init();
     MX_TIM2_Init();
     /* USER CODE BEGIN 2 */
-    HAL_TIM_Base_Start_IT(&htim2); // 打开tim2计时器
+    // HAL_TIM_Base_Start_IT(&htim2); // 打开tim2计时器
     HAL_UART_Receive_DMA(&huart2, (uint8_t *)USART3_RX_BUF, lenth);
-
-    HAL_Delay(200);
-    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
-    HAL_Delay(200);
-    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
-    HAL_Delay(200);
-    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
-    HAL_Delay(200);
-    HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iSM", 3);
-
-    fixed_value = finaldata1;
 
     MQTT_RxDataInPtr  = MQTT_RxDataBuf[0];         // 指向发送缓冲区存放数据的指针归位
     MQTT_RxDataOutPtr = MQTT_RxDataInPtr;          // 指向发送缓冲区读取数据的指针归位
@@ -144,6 +142,13 @@ int main(void)
 
     HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"iACM", 4);
     HAL_Delay(200);
+    Data_analysis();
+    fixed_value = finaldata1;
+    printf("fixed_value=%d\r\n", fixed_value);
+    printf("finaldata1=%d\r\n", finaldata1);
+    HAL_Delay(500);
+
+    // HAL_Delay(200);
 
     /* USER CODE END 2 */
 
@@ -153,8 +158,29 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
+        // printf("while\r\n");
+        // printf("W_fixed_value=%d\r\n", fixed_value);
+        // printf("W_finaldata1=%d\r\n", finaldata1);
+        Data_analysis();
+
+        if (fixed_value - finaldata1 > 1000) {
+            /* code */
+
+            if (times == 0) {
+                /* code */
+                printf("开门");
+                HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
+                HAL_Delay(500);
+                HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
+                HAL_TIM_Base_Start_IT(&htim2); // 打开tim2计时器
+                times++;
+            }else
+            {
+                printf("有人");
+            }
+            
+        }
         Open_door();
-        
     }
     /* USER CODE END 3 */
 }
@@ -196,50 +222,50 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if (GPIO_Pin == K0_Pin) {
+// void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+// {
+//     printf("按键中断\r\n");
+//     if (GPIO_Pin == K0_Pin) {
 
-        if (HAL_GPIO_ReadPin(K0_GPIO_Port, K0_Pin) == GPIO_PIN_RESET) {
-            HAL_Delay(20);
-            if (HAL_GPIO_ReadPin(K0_GPIO_Port, K0_Pin) == GPIO_PIN_RESET) {
-                while (HAL_GPIO_ReadPin(K0_GPIO_Port, K0_Pin) == GPIO_PIN_RESET) {
-                    /* code */
-                    HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
-                    HAL_Delay(200);
-                    HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
-                    HAL_UART_Transmit(&huart1, (uint8_t *)"数据溢出", 10, 0xFFFF);
-                }
-            }
-        }
-        __HAL_GPIO_EXTI_CLEAR_IT(K0_EXTI_IRQn);
-    } else if (GPIO_Pin == K1_Pin) {
+//         if (HAL_GPIO_ReadPin(K0_GPIO_Port, K0_Pin) == GPIO_PIN_RESET) {
+//             HAL_Delay(20);
+//             if (HAL_GPIO_ReadPin(K0_GPIO_Port, K0_Pin) == GPIO_PIN_RESET) {
+//                 while (HAL_GPIO_ReadPin(K0_GPIO_Port, K0_Pin) == GPIO_PIN_RESET) {
+//                     /* code */
+//                     HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
+//                     HAL_Delay(200);
+//                     HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
 
-        if (HAL_GPIO_ReadPin(K1_GPIO_Port, K1_Pin) == GPIO_PIN_RESET) {
-            HAL_Delay(20);
-            if (HAL_GPIO_ReadPin(K1_GPIO_Port, K1_Pin) == GPIO_PIN_RESET) {
-                while (HAL_GPIO_ReadPin(K1_GPIO_Port, K1_Pin) == GPIO_PIN_RESET) {
-                    /* code */
-                    HAL_GPIO_TogglePin(beep_GPIO_Port, beep_Pin);
-                    HAL_GPIO_TogglePin(close_GPIO_Port, close_Pin);
-                    HAL_Delay(200);
-                    HAL_GPIO_TogglePin(beep_GPIO_Port, beep_Pin);
-                    HAL_GPIO_TogglePin(close_GPIO_Port, close_Pin);
-                }
-            }
-        }
-        __HAL_GPIO_EXTI_CLEAR_IT(K1_EXTI_IRQn);
-    }
-}
+//                     HAL_UART_Transmit(&huart1, (uint8_t *)"数据溢出", 10, 0xFFFF);
+
+//                 }
+//             }
+//         }
+//         __HAL_GPIO_EXTI_CLEAR_IT(K0_EXTI_IRQn);
+//     } else if (GPIO_Pin == K1_Pin) {
+
+//         if (HAL_GPIO_ReadPin(K1_GPIO_Port, K1_Pin) == GPIO_PIN_RESET) {
+//             HAL_Delay(20);
+//             if (HAL_GPIO_ReadPin(K1_GPIO_Port, K1_Pin) == GPIO_PIN_RESET) {
+//                 while (HAL_GPIO_ReadPin(K1_GPIO_Port, K1_Pin) == GPIO_PIN_RESET) {
+//                     /* code */
+//                     HAL_GPIO_TogglePin(beep_GPIO_Port, beep_Pin);
+//                     HAL_GPIO_TogglePin(close_GPIO_Port, close_Pin);
+//                     HAL_Delay(200);
+//                     HAL_GPIO_TogglePin(beep_GPIO_Port, beep_Pin);
+//                     HAL_GPIO_TogglePin(close_GPIO_Port, close_Pin);
+//                 }
+//             }
+//         }
+//         __HAL_GPIO_EXTI_CLEAR_IT(K1_EXTI_IRQn);
+//     }
+// }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    // static uint8_t seri_count = 0;
-    // char check_flag, end_flag, j, k = 0;
-    // uint8_t x;
-    // static uint8_t uflag = 0;
+
     /* Prevent unused argument(s) compilation warning */
-    // UNUSED(huart);
+    UNUSED(huart);
     /* NOTE: This function Should not be modified, when the callback is needed,
              the HAL_UART_TxCpltCallback could be implemented in the user file
      */
@@ -266,15 +292,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
     if (huart->Instance == USART2) {
         /* code */
-        for (size_t i = 0; i < lenth; i++) {
-            /* code */
-            printf("%c", USART3_RX_BUF[i]);
-        }
+        // for (size_t i = 0; i < lenth; i++) {
+        //     /* code */
+        //     printf("%c", USART3_RX_BUF[i]);
+        // }
         memcpy(MQTT_RxDataInPtr, USART3_RX_BUF, lenth);
-        MQTT_RxDataInPtr += lenth; // 指针下移
-
+        MQTT_RxDataInPtr += lenth;                 // 指针下移
         if (MQTT_RxDataInPtr == MQTT_RxDataEndPtr) // 如果指针到缓冲区尾部了
             MQTT_RxDataInPtr = MQTT_RxDataBuf[0];  // 指针归位到缓冲区开头
+        // memset(USART3_RX_BUF, 0, lenth);
         HAL_UART_Receive_DMA(&huart2, (uint8_t *)USART3_RX_BUF, lenth);
     }
 }
@@ -296,26 +322,67 @@ void Open_door(void)
     if (SystemTimer - OpenTimer >= 30) {
         /* code */
         OpenTimer = SystemTimer;
-        // HAL_UART_Transmit(&huart1, (uint8_t *)"iSM\r\n", 6, 0xFFFF);
-        // HAL_UART_Transmit(&huart2, (uint8_t *)"iSM", 4, 0xFFFF);
-        HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
+        HAL_GPIO_TogglePin(close_GPIO_Port, close_Pin);
         HAL_Delay(500);
-        HAL_GPIO_TogglePin(open_GPIO_Port, open_Pin);
+        HAL_GPIO_TogglePin(close_GPIO_Port, close_Pin);
+        // HAL_UART_DMAResume(&huart2);
+        times = 0;
+        HAL_TIM_Base_Stop_IT(&htim2);
+        printf("关门");
+        // NVIC_SystemReset();
     }
 }
-void Data_analysis(void){
+void Data_analysis(void)
+{
+    char check_flag, end_flag, j = 0, k = 0;
+    uint8_t x;
     if (MQTT_RxDataInPtr != MQTT_RxDataOutPtr) {
+        /* code */
+        // printf("数据解析\r\n");
+        for (size_t i = 0; i < lenth; i++) {
             /* code */
-            printf("数据解析\r\n");
-            for (size_t i = 0; i < lenth; i++) {
-                /* code */
-                printf("%x ", MQTT_RxDataOutPtr[i]);
+            // printf("%x ", MQTT_RxDataOutPtr[i]);
+            switch (MQTT_RxDataOutPtr[i]) {
+                case 0x6D:
+                    check_flag = i;
+                    // printf("0x6D在第%d位", check_flag);
+                    break;
+                case 0x23:
+                    end_flag = i;
+                    // printf("0x0D在第%d位", end_flag);
+                    break;
+                default:
+                    break;
             }
-            MQTT_RxDataOutPtr += lenth;                 // 接收指针下移
-            if (MQTT_RxDataOutPtr == MQTT_RxDataEndPtr) // 如果接收指针到接收缓冲区尾部了
-                MQTT_RxDataOutPtr = MQTT_RxDataBuf[0];  // 接收指针归位到接收缓冲区开头
+        }
+        for (size_t i = 2; i < check_flag; i++) {
+
+            if (MQTT_RxDataOutPtr[i] == 0x2E) {
+                continue;
+            }
+            fina_data1[j++] = MQTT_RxDataOutPtr[i];
+        }
+        for (size_t a = check_flag + 1; a < end_flag; a++) {
+
+            if (MQTT_RxDataOutPtr[a] == 0x2C) {
+                continue;
+            }
+            fina_data2[k++] = MQTT_RxDataOutPtr[a];
         }
 
+        sscanf(fina_data1, "%d", &finaldata1); // 字符串转int
+        sscanf(fina_data2, "%d", &finaldata2); // 字符串转int
+
+        // printf("距离值=%dmm,回光量=%d\r\n", finaldata1, finaldata2); // print用串口2，串口1用来和激光模块通讯
+        /* code */
+        for (x = 0; x < j; x++) {
+            fina_data1[x] = 0;
+            fina_data2[x] = 0;
+        }
+        MQTT_RxDataOutPtr += lenth;                 // 接收指针下移
+        if (MQTT_RxDataOutPtr == MQTT_RxDataEndPtr) // 如果接收指针到接收缓冲区尾部了
+            MQTT_RxDataOutPtr = MQTT_RxDataBuf[0];  // 接收指针归位到接收缓冲区开头
+    }
 }
 /**
  * 函数功能: 重定向c库函数printf到DEBUG_USARTx
